@@ -20,7 +20,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager.NameNotFoundException;
 import android.net.Network;
-import android.net.NetworkCapabilities;
 import android.net.NetworkInfo;
 
 import java.security.GeneralSecurityException;
@@ -35,10 +34,6 @@ interface SystemFacade {
     public Network getActiveNetwork(int uid, boolean ignoreBlocked);
 
     public NetworkInfo getNetworkInfo(Network network, int uid, boolean ignoreBlocked);
-
-    public boolean isNetworkMetered(Network network);
-
-    public boolean isActiveNetworkMeteredForUid(int uid);
 
     /**
      * @return maximum size, in bytes, of downloads that may go over a mobile connection; or null if

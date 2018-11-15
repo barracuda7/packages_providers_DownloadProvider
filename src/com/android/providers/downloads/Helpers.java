@@ -556,6 +556,14 @@ public class Helpers {
                     return context.getCacheDir();
                 }
 
+            case Downloads.Impl.DESTINATION_SYSTEMCACHE_PARTITION:
+                if (running) {
+                    return new File(Environment.getDownloadCacheDirectory(),
+                            Constants.DIRECTORY_CACHE_RUNNING);
+                } else {
+                    return Environment.getDownloadCacheDirectory();
+                }
+
             case Downloads.Impl.DESTINATION_EXTERNAL:
                 final File target = new File(
                         Environment.getExternalStorageDirectory(), Environment.DIRECTORY_DOWNLOADS);
@@ -788,7 +796,7 @@ public class Helpers {
                     mCurrentToken = TOKEN_COLUMN;
                     return;
                 }
-                throw new IllegalArgumentException("unrecognized column or keyword: " + word);
+                throw new IllegalArgumentException("unrecognized column or keyword");
             }
 
             // quoted strings

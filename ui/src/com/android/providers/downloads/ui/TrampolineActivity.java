@@ -23,21 +23,17 @@ import android.app.DialogFragment;
 import android.app.DownloadManager;
 import android.app.DownloadManager.Query;
 import android.app.FragmentManager;
-import android.content.ActivityNotFoundException;
 import android.content.ContentUris;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.database.Cursor;
-import android.net.Uri;
 import android.os.Bundle;
-import android.provider.DocumentsContract;
 import android.util.Log;
 import android.widget.Toast;
 
 import com.android.providers.downloads.Constants;
 import com.android.providers.downloads.OpenHelper;
-import com.android.providers.downloads.RawDocumentsHelper;
 
 import libcore.io.IoUtils;
 
@@ -57,17 +53,8 @@ public class TrampolineActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        Uri documentUri = getIntent().getData();
-        if (RawDocumentsHelper.isRawDocId(DocumentsContract.getDocumentId(documentUri))) {
-            if (!RawDocumentsHelper.startViewIntent(this, documentUri)) {
-                Toast.makeText(this, R.string.download_no_application_title, Toast.LENGTH_SHORT)
-                        .show();
-            }
-            finish();
-            return;
-        }
+        final long id = ContentUris.parseId(getIntent().getData());
 
-        final long id = ContentUris.parseId(documentUri);
         final DownloadManager dm = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
         dm.setAccessAllDownloads(true);
 

@@ -8,7 +8,8 @@ LOCAL_SRC_FILES := $(call all-java-files-under, src)
 LOCAL_PACKAGE_NAME := DownloadProvider
 LOCAL_CERTIFICATE := media
 LOCAL_PRIVILEGED_MODULE := true
-LOCAL_STATIC_JAVA_LIBRARIES := guava
+LOCAL_STATIC_JAVA_LIBRARIES := guava \
+    android-support-documents-archive
 
 LOCAL_JACK_COVERAGE_INCLUDE_FILTER := com.android.providers.downloads.*
 

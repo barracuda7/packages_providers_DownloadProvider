@@ -27,7 +27,6 @@ import static com.android.providers.downloads.Constants.TAG;
 
 import android.app.DownloadManager;
 import android.app.Notification;
-import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.ContentUris;
@@ -65,10 +64,6 @@ public class DownloadNotifier {
     private static final int TYPE_WAITING = 2;
     private static final int TYPE_COMPLETE = 3;
 
-    private static final String CHANNEL_ACTIVE = "active";
-    private static final String CHANNEL_WAITING = "waiting";
-    private static final String CHANNEL_COMPLETE = "complete";
-
     private final Context mContext;
     private final NotificationManager mNotifManager;
 
@@ -97,18 +92,8 @@ public class DownloadNotifier {
 
     public DownloadNotifier(Context context) {
         mContext = context;
-        mNotifManager = context.getSystemService(NotificationManager.class);
-
-        // Ensure that all our channels are ready to use
-        mNotifManager.createNotificationChannel(new NotificationChannel(CHANNEL_ACTIVE,
-                context.getText(R.string.download_running),
-                NotificationManager.IMPORTANCE_MIN));
-        mNotifManager.createNotificationChannel(new NotificationChannel(CHANNEL_WAITING,
-                context.getText(R.string.download_queued),
-                NotificationManager.IMPORTANCE_DEFAULT));
-        mNotifManager.createNotificationChannel(new NotificationChannel(CHANNEL_COMPLETE,
-                context.getText(com.android.internal.R.string.done_label),
-                NotificationManager.IMPORTANCE_DEFAULT));
+        mNotifManager = (NotificationManager) context.getSystemService(
+                Context.NOTIFICATION_SERVICE);
     }
 
     public void init() {
@@ -196,20 +181,7 @@ public class DownloadNotifier {
             final IntArray cluster = clustered.valueAt(i);
             final int type = getNotificationTagType(tag);
 
-            final Notification.Builder builder;
-            if (type == TYPE_ACTIVE) {
-                builder = new Notification.Builder(mContext, CHANNEL_ACTIVE);
-                builder.setSmallIcon(android.R.drawable.stat_sys_download);
-            } else if (type == TYPE_WAITING) {
-                builder = new Notification.Builder(mContext, CHANNEL_WAITING);
-                builder.setSmallIcon(android.R.drawable.stat_sys_warning);
-            } else if (type == TYPE_COMPLETE) {
-                builder = new Notification.Builder(mContext, CHANNEL_COMPLETE);
-                builder.setSmallIcon(android.R.drawable.stat_sys_download_done);
-            } else {
-                continue;
-            }
-
+            final Notification.Builder builder = new Notification.Builder(mContext);
             builder.setColor(res.getColor(
                     com.android.internal.R.color.system_notification_accent_color));
 
@@ -222,7 +194,6 @@ public class DownloadNotifier {
                 mActiveNotifs.put(tag, firstShown);
             }
             builder.setWhen(firstShown);
-            builder.setOnlyAlertOnce(true);
 
             /**
              * If *all* current downloads in the cluster are manually paused,
@@ -262,7 +233,6 @@ public class DownloadNotifier {
                 final Uri uri = new Uri.Builder().scheme("active-dl").appendPath(tag).build();
                 final Intent intent = new Intent(Constants.ACTION_LIST,
                         uri, mContext, DownloadReceiver.class);
-                intent.addFlags(Intent.FLAG_RECEIVER_FOREGROUND);
                 intent.putExtra(DownloadManager.EXTRA_NOTIFICATION_CLICK_DOWNLOAD_IDS,
                         downloadIds);
                 builder.setContentIntent(PendingIntent.getBroadcast(mContext,
@@ -275,7 +245,6 @@ public class DownloadNotifier {
                 final Uri cancelUri = new Uri.Builder().scheme("cancel-dl").appendPath(tag).build();
                 final Intent cancelIntent = new Intent(Constants.ACTION_CANCEL,
                         cancelUri, mContext, DownloadReceiver.class);
-                cancelIntent.addFlags(Intent.FLAG_RECEIVER_FOREGROUND);
                 cancelIntent.putExtra(DownloadReceiver.EXTRA_CANCELED_DOWNLOAD_IDS, downloadIds);
                 cancelIntent.putExtra(DownloadReceiver.EXTRA_CANCELED_DOWNLOAD_NOTIFICATION_TAG, tag);
 
@@ -325,11 +294,14 @@ public class DownloadNotifier {
                 if (Downloads.Impl.isStatusError(status)) {
                     action = Constants.ACTION_LIST;
                 } else {
-                    action = Constants.ACTION_OPEN;
+                    if (destination != Downloads.Impl.DESTINATION_SYSTEMCACHE_PARTITION) {
+                        action = Constants.ACTION_OPEN;
+                    } else {
+                        action = Constants.ACTION_LIST;
+                    }
                 }
 
                 final Intent intent = new Intent(action, uri, mContext, DownloadReceiver.class);
-                intent.addFlags(Intent.FLAG_RECEIVER_FOREGROUND);
                 intent.putExtra(DownloadManager.EXTRA_NOTIFICATION_CLICK_DOWNLOAD_IDS,
                         getDownloadIds(cursor, cluster));
                 builder.setContentIntent(PendingIntent.getBroadcast(mContext,
@@ -337,7 +309,6 @@ public class DownloadNotifier {
 
                 final Intent hideIntent = new Intent(Constants.ACTION_HIDE,
                         uri, mContext, DownloadReceiver.class);
-                hideIntent.addFlags(Intent.FLAG_RECEIVER_FOREGROUND);
                 builder.setDeleteIntent(PendingIntent.getBroadcast(mContext, 0, hideIntent, 0));
             }
 
@@ -378,18 +349,18 @@ public class DownloadNotifier {
                         if (remainingMillis >= DateUtils.HOUR_IN_MILLIS) {
                             duration = (int) ((remainingMillis + 1800000)
                                     / DateUtils.HOUR_IN_MILLIS);
-                            durationResId = R.plurals.duration_hours;
+                            durationResId = R.string.duration_hours;
                         } else if (remainingMillis >= DateUtils.MINUTE_IN_MILLIS) {
                             duration = (int) ((remainingMillis + 30000)
                                     / DateUtils.MINUTE_IN_MILLIS);
-                            durationResId = R.plurals.duration_minutes;
+                            durationResId = R.string.duration_minutes;
                         } else {
                             duration = (int) ((remainingMillis + 500)
                                     / DateUtils.SECOND_IN_MILLIS);
-                            durationResId = R.plurals.duration_seconds;
+                            durationResId = R.string.duration_seconds;
                         }
                         remainingText = res.getString(R.string.download_remaining,
-                                res.getQuantityString(durationResId, duration, duration));
+                                res.getString(durationResId, duration));
                         speedAsSizeText = Formatter.formatFileSize(mContext, speed);
                     }
 

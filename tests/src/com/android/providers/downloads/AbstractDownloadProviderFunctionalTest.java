@@ -171,8 +171,7 @@ public abstract class AbstractDownloadProviderFunctionalTest extends
         Helpers.setSystemFacade(mSystemFacade);
 
         mSystemFacade.setUp();
-        assertDatabaseEmpty(); // ensure we're not messing with real data
-        assertDatabaseSecureAgainstBadSelection();
+        assertTrue(isDatabaseEmpty()); // ensure we're not messing with real data
         mServer = new MockWebServer();
         mServer.play();
     }
@@ -188,22 +187,16 @@ public abstract class AbstractDownloadProviderFunctionalTest extends
     protected void startDownload(long id) {
         final JobParameters params = mock(JobParameters.class);
         when(params.getJobId()).thenReturn((int) id);
-        getService().onBind(null);
         getService().onStartJob(params);
     }
 
-    private void assertDatabaseEmpty() {
-        try (Cursor cursor = mResolver.query(Downloads.Impl.ALL_DOWNLOADS_CONTENT_URI,
-                null, null, null, null)) {
-            assertEquals(0, cursor.getCount());
-        }
-    }
-
-    private void assertDatabaseSecureAgainstBadSelection() {
-        try (Cursor cursor = mResolver.query(Downloads.Impl.ALL_DOWNLOADS_CONTENT_URI, null,
-                "('1'='1'))) ORDER BY lastmod DESC--", null, null)) {
-            fail("Database isn't secure!");
-        } catch (Exception expected) {
+    private boolean isDatabaseEmpty() {
+        Cursor cursor = mResolver.query(Downloads.Impl.ALL_DOWNLOADS_CONTENT_URI,
+                null, null, null, null);
+        try {
+            return cursor.getCount() == 0;
+        } finally {
+            cursor.close();
         }
     }
 

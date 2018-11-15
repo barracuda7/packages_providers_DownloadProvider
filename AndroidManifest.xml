@@ -53,6 +53,7 @@
     <uses-permission android:name="android.permission.UPDATE_DEVICE_STATS" />
     <!-- TODO: replace with READ_NETWORK_POLICY permission when it exists -->
     <uses-permission android:name="android.permission.CONNECTIVITY_INTERNAL" />
+    <uses-permission android:name="android.permission.MODIFY_NETWORK_ACCOUNTING" />
     <uses-permission android:name="android.permission.CLEAR_APP_CACHE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.UPDATE_APP_OPS_STATS" />
@@ -86,7 +87,6 @@
 
         <provider
             android:name=".DownloadStorageProvider"
-            android:label="@string/storage_description"
             android:authorities="com.android.providers.downloads.documents"
             android:grantUriPermissions="true"
             android:exported="true"

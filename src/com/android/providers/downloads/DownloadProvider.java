@@ -42,7 +42,6 @@ import android.database.DatabaseUtils;
 import android.database.SQLException;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
-import android.database.sqlite.SQLiteQueryBuilder;
 import android.net.Uri;
 import android.os.Binder;
 import android.os.ParcelFileDescriptor;
@@ -85,8 +84,6 @@ public final class DownloadProvider extends ContentProvider {
     private static final int DB_VERSION = 110;
     /** Name of table in the database */
     private static final String DB_TABLE = "downloads";
-    /** Memory optimization - close idle connections after 30s of inactivity */
-    private static final int IDLE_CONNECTION_TIMEOUT_MS = 30000;
 
     /** MIME type for the entire download list */
     private static final String DOWNLOAD_LIST_TYPE = "vnd.android.cursor.dir/download";
@@ -229,7 +226,6 @@ public final class DownloadProvider extends ContentProvider {
     private final class DatabaseHelper extends SQLiteOpenHelper {
         public DatabaseHelper(final Context context) {
             super(context, DB_NAME, null, DB_VERSION);
-            setIdleConnectionTimeout(IDLE_CONNECTION_TIMEOUT_MS);
         }
 
         /**
@@ -574,7 +570,8 @@ public final class DownloadProvider extends ContentProvider {
             if (getContext().checkCallingOrSelfPermission(Downloads.Impl.PERMISSION_ACCESS_ADVANCED)
                     != PackageManager.PERMISSION_GRANTED
                     && (dest == Downloads.Impl.DESTINATION_CACHE_PARTITION
-                            || dest == Downloads.Impl.DESTINATION_CACHE_PARTITION_NOROAMING)) {
+                            || dest == Downloads.Impl.DESTINATION_CACHE_PARTITION_NOROAMING
+                            || dest == Downloads.Impl.DESTINATION_SYSTEMCACHE_PARTITION)) {
                 throw new SecurityException("setting destination to : " + dest +
                         " not allowed, unless PERMISSION_ACCESS_ADVANCED is granted");
             }
@@ -601,6 +598,12 @@ public final class DownloadProvider extends ContentProvider {
                         getCallingPackage()) != AppOpsManager.MODE_ALLOWED) {
                     throw new SecurityException("No permission to write");
                 }
+
+            } else if (dest == Downloads.Impl.DESTINATION_SYSTEMCACHE_PARTITION) {
+                getContext().enforcePermission(
+                        android.Manifest.permission.ACCESS_CACHE_FILESYSTEM,
+                        Binder.getCallingPid(), Binder.getCallingUid(),
+                        "need ACCESS_CACHE_FILESYSTEM permission to use system cache");
             }
             filteredValues.put(Downloads.Impl.COLUMN_DESTINATION, dest);
         }
@@ -923,6 +926,8 @@ public final class DownloadProvider extends ContentProvider {
              final String selection, final String[] selectionArgs,
              final String sort) {
 
+        Helpers.validateSelection(selection, sAppReadableColumnsSet);
+
         SQLiteDatabase db = mOpenHelper.getReadableDatabase();
 
         int match = sURIMatcher.match(uri);
@@ -969,10 +974,7 @@ public final class DownloadProvider extends ContentProvider {
             logVerboseQueryInfo(projection, selection, selectionArgs, sort, db);
         }
 
-        SQLiteQueryBuilder builder = new SQLiteQueryBuilder();
-        builder.setTables(DB_TABLE);
-        builder.setStrict(true);
-        Cursor ret = builder.query(db, projection, fullSelection.getSelection(),
+        Cursor ret = db.query(DB_TABLE, projection, fullSelection.getSelection(),
                 fullSelection.getParameters(), null, null, sort);
 
         if (ret != null) {
@@ -1103,9 +1105,8 @@ public final class DownloadProvider extends ContentProvider {
     @Override
     public int update(final Uri uri, final ContentValues values,
             final String where, final String[] whereArgs) {
-        if (shouldRestrictVisibility()) {
-            Helpers.validateSelection(where, sAppReadableColumnsSet);
-        }
+
+        Helpers.validateSelection(where, sAppReadableColumnsSet);
 
         final Context context = getContext();
         final ContentResolver resolver = context.getContentResolver();
@@ -1292,8 +1293,6 @@ public final class DownloadProvider extends ContentProvider {
                             try {
                                 getContext().getContentResolver().delete(Uri.parse(mediaUri), null,
                                         null);
-                            } catch (Exception e) {
-                                Log.w(Constants.TAG, "Failed to delete media entry: " + e);
                             } finally {
                                 Binder.restoreCallingIdentity(token);
                             }
